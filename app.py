@@ -1,27 +1,36 @@
-# app.py
 import streamlit as st
 import sounddevice as sd
+from recognize import recognize
+from gtts import gTTS
+import tempfile
+import os
 import numpy as np
-import librosa
-from recognize import recognize  
 
-SAMPLE_RATE = 16000  # same as your project
+SAMPLE_RATE = 16000
 DURATION = 2
 
 st.title("🎤 Voice Command Interface")
-
+st.markdown("**Known commands:** yes, no, fuck, coming")
 st.write("Click the button and speak your command!")
 
 if st.button("Start Listening"):
     st.info("Recording...")
     audio = sd.rec(int(DURATION * SAMPLE_RATE), samplerate=SAMPLE_RATE, channels=1, dtype='float32')
     sd.wait()
+    audio = audio.flatten()
     st.success("Recording complete!")
 
-    # Flatten audio
-    audio = audio.flatten()
+    result = recognize(audio)
+    if result:
+        st.write(f"✅ Recognized command: **{result}**")
 
-    # You can either modify your recognize() to accept audio array
-    # or save audio to temp file and call recognize() on it
-    result = recognize(audio)  # if recognize() supports passing audio directly
-    st.write(f"✅ Recognized command: **{result}**")
+        # Text-to-speech via gTTS
+        tts = gTTS(result)
+        tmp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".mp3")
+        tts.save(tmp_file.name)
+
+        st.audio(tmp_file.name, format="audio/mp3")
+        tmp_file.close()
+        os.unlink(tmp_file.name)
+    else:
+        st.write("❌ Command not recognized.")
